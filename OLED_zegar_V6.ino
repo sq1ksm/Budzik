@@ -4,7 +4,7 @@
 #include <RTClib.h>
 #include <EEPROM.h>
 
-#define SCREEN_WIDTH 128
+#define SCREEN_WIDTH 128 //Rozdzielczosc ekranu
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 #define OLED_I2C_ADDRESS 0x3C // Adres I2C dla SSD1306
