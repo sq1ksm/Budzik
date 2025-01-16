@@ -10,6 +10,7 @@ Zegar RTC DS3231 zapewnia dokładne dane dotyczące czasu i temperatury.<br>
 
 Funkcja Alarmu:<br>
 Użytkownik może ustawić godzinę i minutę alarmu za pomocą przycisków.<br>
+Można włączyć i wyłączyć alarm
 Ustawienia alarmu są wyświetlane na ekranie OLED w trybie konfiguracji.<br>
 Kiedy aktualny czas pokrywa się z ustawionym alarmem, brzęczyk generuje dźwięk przez 15 sekund.<br>
 
@@ -50,7 +51,8 @@ Przyciski:<br>
 Jeden pin każdego przycisku do GND Arduino<br>
 Drugi pin pierwszego przycisku do pinu D3 Arduino<br>
 Drugi pin drugiego przycisku do pinu D4 Arduino<br>
-Rezystory podciągające 10kΩ pomiędzy piny D3, D4 a 5V Arduino<br>
+Drugi pin drugiego przycisku do pinu D5 Arduino<br>
+Rezystory podciągające 10kΩ pomiędzy piny D3, D4, D5 a 5V Arduino<br>
 
 Użyte Biblioteki<br>
 Adafruit_GFX.h<br>
