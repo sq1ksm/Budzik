@@ -4,7 +4,7 @@
 #include <RTClib.h>
 #include <EEPROM.h>
 
-#define SCREEN_WIDTH 128 //Rozdzielczosc ekranu
+#define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 #define OLED_I2C_ADDRESS 0x3C // Adres I2C dla SSD1306
@@ -18,7 +18,9 @@ int alarmMinute = 36;
 const int buzzerPin = 2; // Używamy pinu D2 dla brzęczyka
 const int buttonHourPin = 3; // Pin dla przycisku ustawienia godziny
 const int buttonMinutePin = 4; // Pin dla przycisku ustawienia minut
+const int buttonToggleAlarmPin = 5; // Pin dla przycisku włączania/wyłączania alarmu
 bool alarmTriggered = false;
+bool alarmEnabled = true; // Zmienna przechowująca stan alarmu (włączony/wyłączony)
 unsigned long alarmStartTime = 0;
 unsigned long lastBuzzerToggle = 0;
 unsigned long lastButtonPress = 0;
@@ -49,10 +51,12 @@ void setup() {
   // Inicjalizacja przycisków
   pinMode(buttonHourPin, INPUT_PULLUP);
   pinMode(buttonMinutePin, INPUT_PULLUP);
+  pinMode(buttonToggleAlarmPin, INPUT_PULLUP);
 
   // Odczytanie ustawionego alarmu z EEPROM
   alarmHour = EEPROM.read(0);  // Odczyt godziny alarmu z EEPROM
   alarmMinute = EEPROM.read(1);  // Odczyt minuty alarmu z EEPROM
+  alarmEnabled = EEPROM.read(2) == 1; // Odczyt stanu alarmu z EEPROM i konwersja na boolean
   
   // Sprawdzenie czy odczytane wartości są prawidłowe, jeśli nie, ustaw domyślne
   if (alarmHour > 23) alarmHour = 14;  // Domyślna godzina alarmu
@@ -73,11 +77,13 @@ void loop() {
     lastButtonPress = millis();
     settingAlarm = true;
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 25);
-    display.print("Ustaw godzine: ");
-    if (alarmHour < 10) display.print('0');
+    display.setCursor(0, 1);
+    display.print("Godzina: ");
+        display.setTextSize(3);
+                display.setCursor(0, 25);
+//    if (alarmHour < 10) display.print('0'); // nie wiem za duża
     display.setTextSize(2);
     display.print(alarmHour);
     display.display();
@@ -90,17 +96,35 @@ void loop() {
     lastButtonPress = millis();
     settingAlarm = true;
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 25);
-    display.print("Ustaw minute: ");
-    if (alarmMinute < 10) display.print('0');
+    display.setCursor(0, 1);
+    display.print("Minuta: ");
+        display.setTextSize(3);
+                display.setCursor(0, 25);
+//    if (alarmMinute < 10) display.print('0'); // nie wiem za duża
     display.setTextSize(2);
     display.print(alarmMinute);
     display.display();
     delay(200); // Debouncing delay
   }
 
+  if (digitalRead(buttonToggleAlarmPin) == LOW) {
+    alarmEnabled = !alarmEnabled; // Zmiana stanu alarmu
+    EEPROM.write(2, alarmEnabled ? 1 : 0); // Zapis stanu alarmu do EEPROM
+    lastButtonPress = millis();
+    settingAlarm = true;
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 1);
+    display.print("Alarm: ");
+
+            display.setCursor(0, 25);
+    display.print(alarmEnabled ? "Wlaczony" : "Wylaczony");
+    display.display();
+    delay(200); // Debouncing delay
+  }
   // Automatyczny powrót do normalnej pracy po 5 sekundach
   if (settingAlarm && (millis() - lastButtonPress >= 5000)) {
     settingAlarm = false;
@@ -112,18 +136,20 @@ void loop() {
     if (!settingAlarm) {
       display.clearDisplay();
       
-      // Zmieniony napis wyświetlany na ekranie
+      // Zmieniony napis wyświetlany na ekranie w zależności od stanu alarmu
       display.setTextSize(1);
       display.setTextColor(SSD1306_WHITE);
       display.setCursor(0, 0);
-      display.print("Alarm o: ");
-      display.setTextSize(1);
-      if (alarmHour < 10) display.print('0');
-      display.print(alarmHour);
-      display.print(':');
-      if (alarmMinute < 10) display.print('0');
-      display.print(alarmMinute);
-
+      if (alarmEnabled) {
+        display.print("Alarm o: ");
+        if (alarmHour < 10) display.print('0');
+        display.print(alarmHour);
+        display.print(':');
+        if (alarmMinute < 10) display.print('0');
+        display.print(alarmMinute);
+      } else {
+        display.print("BRAK ALARMU");
+      }
       display.setTextSize(1);
       display.setCursor(0, 10);
       display.print(daysOfTheWeek[now.dayOfTheWeek()]);
@@ -157,29 +183,39 @@ void loop() {
     }
   }
 
-  // Wysyłanie informacji przez RS232 co 5 sekund
-  if (millis() - lastSerialUpdate >= 5000) {
-    lastSerialUpdate = millis();
+// Wysyłanie informacji przez RS232 co 5 sekund
+if (millis() - lastSerialUpdate >= 5000) {
+  lastSerialUpdate = millis();
+  if (alarmEnabled) {
     Serial.print("Alarm o: ");
     if (alarmHour < 10) Serial.print('0');
     Serial.print(alarmHour);
     Serial.print(":");
     if (alarmMinute < 10) Serial.print('0');
     Serial.print(alarmMinute);
-    Serial.print(", teraz: ");
-    if (now.hour() < 10) Serial.print('0');
-    Serial.print(now.hour());
+  } else {
+    Serial.print("Wyłączony alarm: ");
+        if (alarmHour < 10) Serial.print('0');
+    Serial.print(alarmHour);
     Serial.print(":");
-    if (now.minute() < 10) Serial.print('0');
-    Serial.print(now.minute());
-    Serial.print(":");
-    if (now.second() < 10) Serial.print('0');
-    Serial.print(now.second());
-    Serial.println();
+    if (alarmMinute < 10) Serial.print('0');
+    Serial.print(alarmMinute);
   }
+  Serial.print(", teraz: ");
+  if (now.hour() < 10) Serial.print('0');
+  Serial.print(now.hour());
+  Serial.print(":");
+  if (now.minute() < 10) Serial.print('0');
+  Serial.print(now.minute());
+  Serial.print(":");
+  if (now.second() < 10) Serial.print('0');
+  Serial.print(now.second());
+  Serial.println();
+}
+
 
   // Sprawdzanie, czy czas zegara jest równy czasowi budzika
-  if (now.hour() == alarmHour && now.minute() == alarmMinute && now.second() == 0 && !alarmTriggered) {
+  if (alarmEnabled && now.hour() == alarmHour && now.minute() == alarmMinute && now.second() == 0 && !alarmTriggered) {
     alarmTriggered = true;
     alarmStartTime = millis(); // Zapisanie czasu rozpoczęcia alarmu
     lastBuzzerToggle = millis();
